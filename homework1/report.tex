@@ -1,0 +1,112 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper]{geometry}
+\geometry{left=2.0cm,right=2.0cm,top=2.5cm,bottom=2.5cm}
+
+\usepackage{ctex}
+\usepackage{amsmath,amsfonts,graphicx,amssymb,bm,amsthm}
+\usepackage{algorithm,algorithmicx}
+\usepackage[noend]{algpseudocode}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{booktabs}
+
+
+\newcounter{counter_exm}\setcounter{counter_exm}{1}
+%\newcounter{counter_thm}\setcounter{counter_thm}{1}
+%\newcounter{counter_lma}\setcounter{counter_lma}{1}
+%\newcounter{counter_dft}\setcounter{counter_dft}{1}
+%\newcounter{counter_clm}\setcounter{counter_clm}{1}
+%\newcounter{counter_cly}\setcounter{counter_cly}{1}
+
+\newtheorem{theorem}{{\hskip 1.7em \bf 定理}}
+\newtheorem{lemma}[theorem]{\hskip 1.7em 引理}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{\hskip 1.7em 命题}
+\newtheorem{corollary}[theorem]{\hskip 1.7em 推论}
+\newtheorem{definition}[theorem]{\hskip 1.7em 定义}
+
+\renewcommand{\emph}[1]{\begin{kaishu}#1\end{kaishu}}
+
+\newenvironment{solution}{{\noindent\hskip 2em \bf 解 \quad}}
+
+
+\renewenvironment{proof}{{\noindent\hskip 2em \bf 证明 \quad}}{\hfill$\qed$\par}
+\newenvironment{example}{{\noindent\hskip 2em \bf 例 \arabic{counter_exm}\quad}}{\addtocounter{counter_exm}{1}\par}
+
+\newenvironment{concept}[1]{{\bf #1\quad} \begin{kaishu}} {\end{kaishu}\par}
+
+\newcommand\E{\mathbb{E}}
+
+\begin{document}
+    
+\pagestyle{fancy}
+\lhead{\kaishu 中国科学院大学}
+\chead{}
+\rhead{\kaishu 2025年秋季学期操作系统理论课}
+    
+\begin{center}
+    {\LARGE \bf 第一次作业}\\
+\end{center}
+    \begin{kaishu}
+        \hfill 寇逸欣 2023K8009922004
+    \end{kaishu}
+
+\section{实验环境}
+本实验在 WSL2 环境下进行，操作系统版本如下：
+
+\begin{verbatim}
+Linux LAPTOP-C42RC799 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC
+Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+\end{verbatim}
+
+实验所用的硬件为一台具有 Intel Core i9 14900HX 处理器和 32GB 内存的笔记本电脑。
+
+\section{代码实现}
+本次实验的代码实现包括三种不同方式的系统调用：glibc封装的系统调用、直接使用syscall指令的系统调用以及使用内联汇编实现的系统调用。
+代码文件分别命名为 \texttt{open\_glibc.c}、\texttt{open\_syscall.c}、\texttt{open\_asm.c} 和 \texttt{getpid\_glibc.c}、\texttt{getpid\_syscall.c}、\texttt{getpid\_asm.c}。每
+个文件中都包含了相应的系统调用实现以及测试代码。
+
+其中计时函数选择了 \texttt{clock\_gettime}，而不是 \texttt{gettimeofday}，因为前者提供了更高的精度（纳秒级）和更稳定的时间测量，适合用于性能测试。而后者仅提供微秒级精度，在高精度需求场景下可能不够准确。
+除此之外，\texttt{gettimeofday} 还可能受到系统时间调整的影响，导致测量结果不准确。
+
+\section{实验结果}
+实验结果如下表所示，表中列出了每种系统调用实现的平均执行时间（单位：纳秒）。每个测试用例均运行了 1000 次以确保结果的稳定性。实验对每一项
+的测试设计了100次预热，以减少缓存和其他系统状态对测量结果的影响。
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabularx}{0.8\textwidth}{l X X X}
+        \toprule
+        \textbf{函数/平均时间(ns)} & \textbf{test1} & \textbf{test2} & \textbf{test3} \\
+        \midrule
+        \texttt{open\_glibc}    & 1965 & 1974 & 2020 \\
+        \texttt{open\_syscall}  & 2002 & 1974 & 2049 \\
+        \texttt{open\_asm}      & 1185 & 1265 & 1261 \\
+        \texttt{getpid\_glibc}  & 1293 & 1301 & 1279 \\
+        \texttt{getpid\_syscall}& 251  & 248  & 255  \\
+        \texttt{getpid\_asm}    & 198  & 200  & 193  \\
+        \bottomrule
+    \end{tabularx}
+    \caption{不同系统调用实现的平均执行时间（单位：纳秒）}
+\end{table}
+
+\section{结果分析}
+\subsection{针对同一个系统调用，记录和对比三种方法的运行时间，并分析时间差异原因}
+对于 \texttt{open} 系统调用，glibc 封装版本和直接使用 syscall 指令版本的运行时间相差不大，均在 2000 纳秒左右。这是因为 glibc 封装的 \texttt{open} 函数本质上也是通过 syscall 指令实现的，因此性能差异较小。此外，\texttt{open} 是一个复杂的系统调用，涉及参数准备、路径解析、权限检查等多个步骤，glibc 的额外封装开销在整体流程中占比很小，所以两者时间差异不明显。然而，使用内联汇编实现的 \texttt{open} 系统调用显著更快，平均时间约为 1200 纳秒。这可能是因为内联汇编能够更直接地控制寄存器和指令，从而减少函数调用开销和上下文切换时间。
+
+对于 \texttt{getpid} 系统调用，glibc 封装版本的运行时间约为 1300 纳秒，而直接使用 syscall 指令版本显著更快，平均时间约为 250 纳秒。使用内联汇编实现的 \texttt{getpid} 系统调用进一步提升了性能，平均时间约为 200 纳秒。这表明，对于简单的系统调用，直接使用 syscall 指令和内联汇编可以显著减少函数调用开销，从而提高性能。原因在于 \texttt{getpid} 作为一个极其简单的系统调用，glibc 封装虽然只是简单调用 syscall，但函数封装、参数传递和返回值处理等额外开销在总执行时间中占比较大，因此直接 syscall 和内联汇编版本明显更快。
+
+\subsection{对比getpid和open这两个系统调用在使用内联汇编实现调用时的运行时间，如果有差异，尝试解释差异原因。若无差异，说明即可。}
+
+在使用内联汇编实现系统调用时，\texttt{getpid} 和 \texttt{open} 这两个系统调用的运行时间存在显著差异。具体来说，\texttt{getpid} 的平均执行时间约为 200 纳秒，而 \texttt{open} 的平均执行时间约为 1200 纳秒。这种差异主要源于两个系统调用的复杂性和所需的资源。
+\texttt{getpid} 是一个非常简单的系统调用，它只需要返回当前进程的 ID，涉及的操作非常少，因此执行时间较短。而 \texttt{open} 则是一个相对复杂的系统调用，它需要处理文件路径解析、权限检查以及文件描述符的分配等多个步骤，这些操作都需要更多的时间和资源。因此，\texttt{open} 系统调用的执行时间显著高于 \texttt{getpid}。
+
+\end{document}
+
+
+
+
+
